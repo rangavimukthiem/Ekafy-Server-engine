@@ -1,0 +1,8 @@
+#!/bin/bash
+set -e
+
+mkdir -p /srv/ekafy-server-engine
+chmod 755 /srv/ekafy-server-engine
+
+exit 0
+

@@ -1,0 +1,10 @@
+Package: ekafy-server-engine
+Version: 0.1.0
+Section: admin
+Priority: optional
+Architecture: amd64
+Maintainer: Ranga <rangavimukthiem@gmail.com>
+Depends: bash, sudo, git, curl
+Description: Ekafy Server Engine
+ A server automation engine to initialize Linux servers
+ and deploy multiple products with a unified structure.

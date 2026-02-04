@@ -1,0 +1,43 @@
+#!/bin/bash
+set -e
+
+# Source core functions
+source /srv/ekafy-server-engine/core/ekafy-functions.sh
+
+# Parse CLI arguments
+COMMAND="$1"
+
+case "$COMMAND" in
+    init)
+        sudo /srv/ekafy-server-engine/core/ekafy-init.sh
+        ;;
+    product)
+        SUB="$2"
+        case "$SUB" in
+            create)
+                product_create
+                ;;
+            list)
+                product_list
+                ;;
+            delete)
+                product_delete "$3"
+                ;;
+            *)
+                echo "Unknown product command: $SUB"
+                ;;
+        esac
+        ;;
+    config)
+        config "$2" "$3"
+        ;;
+    logs)
+        show_logs "$2"
+        ;;
+    help|"" )
+        echo "Ekafy CLI - commands: init, product, config, logs"
+        ;;
+    *)
+        echo "Unknown command: $COMMAND"
+        ;;
+esac
