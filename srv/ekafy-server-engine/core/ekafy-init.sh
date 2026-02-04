@@ -16,8 +16,18 @@ fi
 # Collect basic info
 read -p "Server name: " SERVER_NAME
 read -p "Admin email: " ADMIN_EMAIL
-read -p "Timezone [UTC]: " TIMEZONE
-TIMEZONE=${TIMEZONE:-UTC}
+
+# Auto-detect timezone
+DETECTED_TZ=$(timedatectl show --property=Timezone --value 2>/dev/null || true)
+
+if [ -z "$DETECTED_TZ" ]; then
+  echo "⚠️  Unable to detect timezone automatically."
+  read -p "Enter timezone (e.g. Asia/Colombo) [UTC]: " TIMEZONE
+  TIMEZONE=${TIMEZONE:-Etc/UTC}
+else
+  TIMEZONE="$DETECTED_TZ"
+  echo "🕒 Timezone detected: $TIMEZONE"
+fi
 
 echo ""
 echo "🔧 Configuring server..."
