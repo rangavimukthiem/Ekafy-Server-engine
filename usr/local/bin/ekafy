@@ -4,16 +4,58 @@ set -e
 # Source core functions
 source /srv/ekafy-server-engine/core/ekafy-functions.sh
 
+
+# ---------- Check if Ekafy is initialized ----------
+EKAFY_DIR="/srv/ekafy-server-engine"
+INIT_FLAG="$EKAFY_DIR/.initialized"
+
+check_init() {
+    # Make sure INIT_FLAG is set before calling this function
+    if [[ ! -f "$INIT_FLAG" ]]; then
+        echo "❌ Ekafy is not initialized!"
+        read -rp "Do you want to initialize now? (y/N): " INIT_COMMAND
+
+        # Convert to lowercase to simplify comparison
+        INIT_COMMAND=${INIT_COMMAND,,}  # e.g., "Y" -> "y"
+
+        if [[ "$INIT_COMMAND" == "y" ]]; then
+            sudo /srv/ekafy-server-engine/core/ekafy-init.sh
+        else
+            echo "❌ Initialization skipped. Exiting."
+            exit 1
+        fi
+    else
+        echo "✅ Ekafy is already initialized."
+    fi
+}
+
 # Parse CLI arguments
 COMMAND="$1"
 
 case "$COMMAND" in
     init)
-        sudo /srv/ekafy-server-engine/core/ekafy-init.sh
+    	 check_init
+    	
+        ;;
+    remove)
+    	
+        ekafy_remove
         ;;
     product)
+    	check_init
+
         SUB="$2"
+        PRODUCT_NAME="$3"
+    	ACTION="$4"
         case "$SUB" in
+        
+        	web)
+            echo "1.install 	2.reinstall		3.remove 	4.validate 		5.status"
+            
+            source /srv/ekafy-server-engine/core/web-functions.sh
+            web_dispatch "$PRODUCT_NAME" "$ACTION"
+            	;;
+        	
             create)
                 product_create
                 ;;
@@ -23,19 +65,33 @@ case "$COMMAND" in
             delete)
                 product_delete "$3"
                 ;;
+            help|"" )
+        		echo "----------------Ekafy Product - commands---------------"
+                echo ""
+        		echo " 1-create		2-delete		3-list 		4- web "
+        		;;
             *)
                 echo "Unknown product command: $SUB"
                 ;;
         esac
         ;;
     config)
+    	check_init
         config "$2" "$3"
         ;;
     logs)
+    	check_init
         show_logs "$2"
         ;;
+    registry)
+    	check_init
+    	ekafy_registry
+        ;;
     help|"" )
-        echo "Ekafy CLI - commands: init, product, config, logs"
+    
+        echo "----------------Ekafy CLI - commands---------------"
+        echo ""
+        echo "1-init	2-product	 3-config 	4-logs	5-remove	 6-registry"
         ;;
     *)
         echo "Unknown command: $COMMAND"
