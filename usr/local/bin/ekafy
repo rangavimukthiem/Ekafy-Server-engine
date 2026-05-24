@@ -1,99 +1,180 @@
 #!/bin/bash
 set -e
+# Colors
+# Colors (FIXED)
+RED=$'\e[31m'
+GREEN=$'\e[32m'
+YELLOW=$'\e[33m'
+BLUE=$'\e[34m'
+CYAN=$'\e[36m'
+RESET=$'\e[0m'
 
-# Source core functions
-source /srv/ekafy-server-engine/core/ekafy-functions.sh
+# emojis========================
 
 
-# ---------- Check if Ekafy is initialized ----------
-EKAFY_DIR="/srv/ekafy-server-engine"
-INIT_FLAG="$EKAFY_DIR/.initialized"
+# ==========================================
+# Ekafy CLI Entry Point (Optimized)
+# ==========================================
 
-check_init() {
-    # Make sure INIT_FLAG is set before calling this function
+BASE="/srv/core"
+INIT_FLAG="$BASE/.initialized"
+
+# ==========================================
+# Banner
+# ==========================================
+
+echo "🚀 Welcome $(whoami)"
+
+# ==========================================
+# Load Core Functions
+# ==========================================
+
+source "$BASE/ekafy-functions.sh"
+
+# ==========================================
+# Init Check
+# ==========================================
+
+require_init() {
     if [[ ! -f "$INIT_FLAG" ]]; then
-        echo "❌ Ekafy is not initialized!"
-        read -rp "Do you want to initialize now? (y/N): " INIT_COMMAND
-
-        # Convert to lowercase to simplify comparison
-        INIT_COMMAND=${INIT_COMMAND,,}  # e.g., "Y" -> "y"
-
-        if [[ "$INIT_COMMAND" == "y" ]]; then
-            sudo /srv/ekafy-server-engine/core/ekafy-init.sh
-        else
-            echo "❌ Initialization skipped. Exiting."
-            exit 1
-        fi
-    else
-        echo "✅ Ekafy is already initialized."
+        echo ""
+        echo "❌ Ekafy is not initialized."
+        echo "👉 Run: sudo ekafy init"
+        echo ""
+        exit 1
     fi
 }
 
-# Parse CLI arguments
-COMMAND="$1"
+# ==========================================
+# Help Menu
+# ==========================================
+
+ekafy_help() {
+    echo ""
+    echo "${CYAN}===================================================${RESET}"
+    echo "${GREEN}		 EKAFY SERVER ENGINE${RESET}"
+    echo "${CYAN}==================================================${RESET}"
+
+    if [[ -f "$INIT_FLAG" ]]; then
+        echo "Status : ${GREEN}✅ Initialized${RESET}"
+    else
+        echo "Status : ${RED}❌ Not Initialized${RESET}"
+    fi
+
+    echo ""
+    echo "1) ${BLUE}Core${RESET}"
+    echo "  ekafy init"
+    echo "  ekafy remove"
+    echo "  ekafy registry"
+    echo ""
+
+    echo "2) ${BLUE}Product${RESET}"
+    echo "  ekafy product create"
+    echo "  ekafy product list"
+    echo "  ekafy product delete <app>"
+    echo ""
+
+    echo "3) ${BLUE}App${RESET}"
+    echo "  ekafy app start 	<app>"
+    echo "  ekafy app stop 		<app>"
+    echo "  ekafy app restart	<app>"
+    echo "  ekafy app status 	<app>"
+    echo "  ekafy app logs 		<app>"
+    echo "  ekafy app deploy 	<app>"
+    echo ""
+
+    echo "4) ${BLUE}Web${RESET}"
+    echo "  ekafy web <app> install|reinstall|remove|validate|status"
+    echo ""
+    echo "4) ${BLUE}github${RESET}"
+    echo "  ekafy web <app> install|reinstall|remove|validate|status"
+    echo ""
+
+    echo "5) ${CYAN}Examples${RESET}"
+    echo "  ekafy 	product 	create"
+    echo "  ekafy 	app start 	myapp"
+    echo "  ekafy 	app deploy 	myapp"
+    echo "  ekafy 	registry"
+    echo ""
+    echo "${YELLOW}Enter Your Choice >>>${RESET}"
+}
+
+# ==========================================
+# Default command safe handling
+# ==========================================
+
+COMMAND="${1:-help}"
+
+# ==========================================
+# Router
+# ==========================================
 
 case "$COMMAND" in
-    init)
-    	 check_init
-    	
-        ;;
-    remove)
-    	
-        ekafy_remove
-        ;;
-    product)
-    	check_init
 
-        SUB="$2"
-        PRODUCT_NAME="$3"
-    	ACTION="$4"
-        case "$SUB" in
-        
-        	web)
-            echo "1.install 	2.reinstall		3.remove 	4.validate 		5.status"
-            
-            source /srv/ekafy-server-engine/core/web-functions.sh
-            web_dispatch "$PRODUCT_NAME" "$ACTION"
-            	;;
-        	
-            create)
-                product_create
-                ;;
-            list)
-                product_list
-                ;;
-            delete)
-                product_delete "$3"
-                ;;
-            help|"" )
-        		echo "----------------Ekafy Product - commands---------------"
-                echo ""
-        		echo " 1-create		2-delete		3-list 		4- web "
-        		;;
-            *)
-                echo "Unknown product command: $SUB"
-                ;;
-        esac
-        ;;
-    config)
-    	check_init
-        config "$2" "$3"
-        ;;
-    logs)
-    	check_init
-        show_logs "$2"
-        ;;
-    registry)
-    	check_init
-    	ekafy_registry
-        ;;
-    help|"" )
+init)
+	echo "init select"
+	sudo bash "$BASE/ekafy-init.sh"
+    ;;
+	
+
+remove)
+	
+    sudo "$BASE/ekafy-remove.sh"
+   
+    ;;
+
+product)
+    require_init
+    SUB="$2"
+
+    case "$SUB" in
+        create) product_create ;;
+        list) product_list ;;
+        delete) product_delete "$3" ;;
+        web)
+            source "$BASE/web-functions.sh"
+            web_dispatch "$3" "$4"
+            ;;
+        *)
+            echo "Usage: ekafy product {create|list|delete|web}"
+            ;;
+    esac
+    ;;
+
+app)
+    require_init
+    SUB="$2"
+
+    case "$SUB" in
+        start) app_start "$3" ;;
+        stop) app_stop "$3" ;;
+        restart) app_restart "$3" ;;
+        status) app_status "$3" ;;
+        logs) app_logs "$3" ;;
+        deploy) app_deploy "$3" ;;
+        *)
+            echo "Usage: ekafy app {start|stop|restart|status|logs|deploy}"
+            ;;
+    esac
+    ;;
+
+web)
+    require_init
+    source "$BASE/web-functions.sh"
+    web_dispatch "$2" "$3"
+    ;;
+
+registry)
+    require_init
+    ekafy_registry
+    ;;
     
-        echo "----------------Ekafy CLI - commands---------------"
-        echo ""
-        echo "1-init	2-product	 3-config 	4-logs	5-remove	 6-registry"
-        ;;
-    *)
-        echo "Unknown command: $COMMAND"
-        ;;
+github)
+	git_dispatch
+    ;;
+
+help|*)
+    ekafy_help
+    ;;
+
 esac

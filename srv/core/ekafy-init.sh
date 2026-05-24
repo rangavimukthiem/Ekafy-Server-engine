@@ -5,8 +5,26 @@ set -euo pipefail
 # Ekafy Server Engine – Init (ONE TIME)
 ########################################
 
+function allocate_port() {
+
+    PORT=$(sudo -u postgres psql -d "$REGISTRY_DB" -t -A -c "
+    UPDATE reserved_ports
+    SET allocated = true
+    WHERE port = (
+        SELECT port
+        FROM reserved_ports
+        WHERE allocated = false
+        LIMIT 1
+    )
+    RETURNING port;
+    ")
+
+    echo "$PORT"
+}
+
 # ---------- Constants ----------
-EKAFY_DIR="/srv/ekafy-server-engine"
+SERVER_NAME="Ekafy-Engine"
+EKAFY_DIR="/srv/core"
 INIT_FLAG="$EKAFY_DIR/.initialized"
 
 EKAFY_USER="ekafy"
@@ -19,8 +37,9 @@ REGISTRY_SECRET="$EKAFY_DIR/secrets/registry-db.env"
 # ---------- Root Check ----------
 if [[ "$EUID" -ne 0 ]]; then
   echo "❌ This command must be run as root"
-  echo "👉 Use: sudo ekafy init"
-  exit 1
+  echo "👉 Use: sudo ekafy "
+  
+  
 fi
 
 # ---------- Idempotency Guard ----------
@@ -36,8 +55,9 @@ echo "===================================="
 echo ""
 
 # ---------- Collect Info ----------
-read -rp "Server name        : " SERVER_NAME
+echo	 "Server name	     :  $SERVER_NAME"
 read -rp "Admin email        : " ADMIN_EMAIL
+read -rp "Server_IP       	 : " SERVER_IP
 
 # ---------- Timezone ----------
 DETECTED_TZ=$(timedatectl show --property=Timezone --value 2>/dev/null || true)
@@ -140,7 +160,7 @@ fi
 echo ""
 echo "📁 Creating Ekafy directories..."
 
-mkdir -p "$EKAFY_DIR"/{apps,logs,secrets,config,core}
+mkdir -p "$EKAFY_DIR"/{apps,logs,secrets,config,gateway}
 
 # ---------- Permissions ----------
 echo "🔐 Setting permissions..."
@@ -149,10 +169,10 @@ chown root:"$EKAFY_GROUP" "$EKAFY_DIR/apps"
 chmod 775 "$EKAFY_DIR/apps"
 
 chown -R "$EKAFY_USER":"$EKAFY_GROUP" \
-  "$EKAFY_DIR"/{logs,secrets,config,core}
+  "$EKAFY_DIR"/{logs,secrets,config,gateway}
 
 chmod 755 "$EKAFY_DIR"
-chmod 755 "$EKAFY_DIR"/{logs,core}
+chmod 755 "$EKAFY_DIR"/{logs,gateway}
 chmod 750 "$EKAFY_DIR"/{config,secrets}
 
 # ---------- Save Server Config ----------
@@ -163,6 +183,7 @@ cat > "$EKAFY_DIR/config/server.env" <<EOF
 SERVER_NAME="$SERVER_NAME"
 ADMIN_EMAIL="$ADMIN_EMAIL"
 TIMEZONE="$TIMEZONE"
+SERVER_IP="$SERVER_IP"
 EOF
 
 chmod 640 "$EKAFY_DIR/config/server.env"
@@ -209,16 +230,224 @@ chown "$EKAFY_USER:$EKAFY_GROUP" "$REGISTRY_SECRET"
 sudo -u postgres psql -d "$REGISTRY_DB" -c "
 CREATE TABLE IF NOT EXISTS apps (
   id UUID PRIMARY KEY,
+
   name TEXT UNIQUE NOT NULL,
+
   has_api BOOLEAN DEFAULT false,
   has_db BOOLEAN DEFAULT false,
   has_web BOOLEAN DEFAULT false,
+
   repo TEXT,
+
   db_name TEXT,
   db_user TEXT,
+
   api_port INTEGER,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);"
+
+  runtime_status TEXT DEFAULT 'stopped',
+  runtime_pid TEXT,
+  runtime_type TEXT DEFAULT 'node',
+
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS reserved_ports (
+  port INTEGER PRIMARY KEY,
+  allocated BOOLEAN DEFAULT false,
+  app_name TEXT
+);
+
+INSERT INTO reserved_ports (port)
+SELECT generate_series(3001, 3999)
+ON CONFLICT DO NOTHING;
+
+"
+
+echo ""
+
+echo "Initializing Api Gateway..................."
+CORE_API_DIR="$EKAFY_DIR/gateway/api-gateway"
+
+
+mkdir -p "$CORE_API_DIR"
+cd "$CORE_API_DIR"
+echo "Api Gateway in $CORE_API_DIR"
+echo "Installing ....http-proxy-middleware"
+npm init -y
+npm install express http-proxy-middleware
+echo ""
+
+echo "Writing ....Gateway Server in $CORE_API_DIR "
+cat > "$CORE_API_DIR/server.js" <<'EOF'
+
+const fs = require('fs');
+const express = require('express');
+const { createProxyMiddleware } = require('http-proxy-middleware');
+const { Client } = require('pg');
+
+const app = express();
+
+/* =========================
+   LOAD ENV FILE (NO HARD CODE)
+========================= */
+function loadEnv(filePath) {
+  const env = fs.readFileSync(filePath, 'utf-8');
+
+  env.split('\n').forEach(line => {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) return;
+
+    const index = trimmed.indexOf('=');
+    if (index === -1) return;
+
+    const key = trimmed.substring(0, index).trim();
+    const value = trimmed.substring(index + 1).trim();
+
+    process.env[key] = value;
+  });
+}
+
+loadEnv('/srv/core/registry-db.env');
+
+/* =========================
+   POSTGRES CONNECTION
+========================= */
+const client = new Client({
+  user: process.env.DB_USER,
+  host: process.env.DB_HOST || 'localhost',
+  database: process.env.DB_NAME,
+  password: process.env.DB_PASSWORD,
+  port: process.env.DB_PORT || 5432,
+});
+
+/* =========================
+   LOAD ROUTES DYNAMICALLY
+========================= */
+async function loadRoutes() {
+  try {
+    await client.connect();
+
+    const res = await client.query(\`
+      SELECT name, api_port
+      FROM apps
+      WHERE has_api = true
+    \`);
+
+    console.log('🚀 Loading Ekafy App Routes...');
+
+    res.rows.forEach(appData => {
+      console.log(\`📦 /${appData.name} → http://localhost:${appData.api_port}\`);
+
+      app.use(\`/${appData.name}\`, createProxyMiddleware({
+        target: \`http://localhost:\${appData.api_port}\`,
+        changeOrigin: true,
+      }));
+    });
+
+  } catch (err) {
+    console.error('❌ Gateway DB Error:', err.message);
+  }
+}
+
+/* =========================
+   INIT
+========================= */
+loadRoutes();
+
+/* =========================
+   HEALTH CHECK
+========================= */
+app.get('/', (req, res) => {
+  res.send('🚀 Ekafy Gateway Running');
+});
+
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'OK',
+    time: new Date().toISOString()
+  });
+});
+
+/* =========================
+   START SERVER
+========================= */
+const PORT = 3000;
+
+app.listen(PORT, () => {
+  console.log(`🚀 Ekafy API Gateway running on port \${PORT}`);
+ 
+});
+EOF
+echo ""
+
+# running api gateway-server
+pm2 stop all
+echo ""
+pm2 start "$CORE_API_DIR/server.js" --name ekafy-gateway
+echo ""
+pm2 save
+echo "PM2 service registered for Gateway Server.....  "
+
+# nginx site configurations for api-gateway
+
+echo ""
+echo "🌐 Configuring Nginx for Ekafy Gateway..."
+NGINX_CONF="/etc/nginx/sites-available/ekafy-gateway"
+rm -f "$NGINX_CONF"
+
+
+
+cat > "$NGINX_CONF" <<EOF
+server {
+    listen 80;
+    server_name _;
+
+    location / {
+        proxy_pass http://localhost:3000;
+
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host \$host;
+
+        proxy_cache_bypass \$http_upgrade;
+    }
+}
+EOF
+
+echo "🌐 Enabling nginx site for api-gateway..."
+ln -sf "$NGINX_CONF" /etc/nginx/sites-enabled/ekafy-gateway
+echo ""
+
+echo "🧹 Removing default nginx site..."
+rm -f /etc/nginx/sites-enabled/default
+rm -f /etc/nginx/sites-enabled/inactive
+echo ""
+
+echo "🧪 Testing nginx config..."
+nginx -t || { echo "❌ Nginx config failed"; exit 1; }
+
+echo "🔄 Reloading nginx..."
+sudo systemctl reload nginx
+echo ""
+sudo systemctl status nginx --no-pager
+echo ""
+echo "Testing localhost connection ..."
+curl http://localhost
+echo ""
+echo "Checking port : 3000....."
+sudo ss -tuln | grep 3000
+echo ""
+echo "checking Running Services ....."
+sudo pm2 list
+
+
+
+
+
+
+
 
 # ---------- Mark Initialization ----------
 touch "$INIT_FLAG"
