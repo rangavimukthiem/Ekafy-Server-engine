@@ -33,33 +33,33 @@ It automates:
 ```bash
 git clone https://github.com/YOUR_ORG/ekafy-engine.git
 cd ekafy-engine
-2. Build Debian package (recommended)
-dpkg-deb --build ekafy-deb
-sudo dpkg -i ekafy-deb.deb
+
+
 3. Initialize system
-sudo ekafy init
+  sudo ekafy init
+
 🚀 Usage
-Core Commands
-ekafy init
-ekafy registry
-ekafy remove
+    Core Commands
+      ekafy init
+      ekafy registry
+      ekafy remove
 📦 Product Management
-ekafy product create
-ekafy product list
-ekafy product delete <app_name>
+      ekafy product create
+      ekafy product list
+      ekafy product delete <app_name>
 🧩 Application Lifecycle
-ekafy app start <app>
-ekafy app stop <app>
-ekafy app restart <app>
-ekafy app status <app>
-ekafy app logs <app>
-ekafy app deploy <app>
+      ekafy app start <app>
+      ekafy app stop <app>
+      ekafy app restart <app>
+      ekafy app status <app>
+      ekafy app logs <app>
+      ekafy app deploy <app>
 🌐 Web Management
-ekafy web <app> install
-ekafy web <app> reinstall
-ekafy web <app> remove
-ekafy web <app> validate
-ekafy web <app> status
+      ekafy web <app> install
+      ekafy web <app> reinstall
+      ekafy web <app> remove
+      ekafy web <app> validate
+      ekafy web <app> status
 🏗️ System Architecture
 /srv/core
 │
@@ -85,10 +85,10 @@ ekafy web <app> status
 
 Ekafy automatically generates a dynamic API Gateway:
 
-Built with Express.js
-Uses http-proxy-middleware
-Dynamically loads apps from PostgreSQL registry
-Runs under PM2
+  Built with Express.js
+  Uses http-proxy-middleware
+  Dynamically loads apps from PostgreSQL registry
+  Runs under PM2
 🗄️ Database
 
 PostgreSQL registry contains:
@@ -101,40 +101,42 @@ ekafy update
 
 Features:
 
-Pull latest from GitHub
-Auto backup before update
-Restart services
-Rollback support (planned)
-🧪 Example Workflow
-sudo ekafy init
-ekafy product create
-ekafy app deploy myapp
-ekafy web myapp install
-🛠 Requirements
-Ubuntu / Debian server
-Node.js 18+
-PostgreSQL
-PM2
-Nginx
-Git
+-Pull latest from GitHub
+-Auto backup before update
+-Restart services
+-Rollback support (planned)
+-🧪 Example Workflow
+-sudo ekafy init
+-ekafy product create
+-ekafy app deploy myapp
+-ekafy web myapp install
+-🛠 Requirements
+-Ubuntu / Debian server
+-Node.js 18+
+-PostgreSQL
+-PM2
+-Nginx
+-Git
+
 🔐 Security Model
-Dedicated system user: ekafy
-Restricted directory permissions
-Root-only initialization
-Isolated app execution via PM2
+  Dedicated system user: ekafy
+  Restricted directory permissions
+  Root-only initialization
+  Isolated app execution via PM2
 📌 Roadmap
-CLI engine
-API Gateway
-Registry DB
-PM2 integration
-ekafy update system
-Rollback system
-Plugin system
-Dashboard UI
+  CLI engine
+  API Gateway
+  Registry DB
+  PM2 integration
+  ekafy update system
+  Rollback system
+  Plugin system
+  Dashboard UI
 Multi-server cluster mode
 👨‍💻 Author
 
 Ekafy Engine Development
+Ranga Ekanayake
 
 📜 License
 
