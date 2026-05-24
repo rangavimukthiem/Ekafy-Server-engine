@@ -119,7 +119,7 @@ init)
 
 remove)
 	
-    sudo "$BASE/ekafy-remove.sh"
+    sudo bash "$BASE/ekafy-remove.sh"
    
     ;;
 
@@ -169,8 +169,13 @@ registry)
     ekafy_registry
     ;;
     
-github)
-	git_dispatch
+update)
+	ekafy_update
+	
+    ;;
+    
+status)
+	ekafy_status
     ;;
 
 help|*)

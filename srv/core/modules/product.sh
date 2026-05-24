@@ -3,18 +3,18 @@ function product_create() {
     read -p "App name: " NAME
     read -p "Repo: " REPO
 
-    APP=$(echo "$NAME" | tr ' ' '_')
-    PATH="/srv/core/apps/$APP"
+    APP=$(echo "$NAME" | tr ' ' '-')
+    LOCATION="/srv/core/apps/$APP"
 
-    [[ -d "$PATH" ]] && { echo "Exists"; return; }
+    [[ -d "$LOCATION" ]] && { echo "Exists"; return; }
 
-    mkdir -p "$PATH"/{api,web,db,logs,config}
+    sudo mkdir -p "$LOCATION"/{api,web,db,logs,config}
 
-    [[ -n "$REPO" ]] && git clone "$REPO" "$PATH"
+    [[ -n "$REPO" ]] && git clone "$REPO" "$LOCATION"
 
     sudo -u postgres psql -d ekafy_registry -c "
         INSERT INTO apps (id, name, created_at)
-        VALUES (gen_random_uuid(), '$APP', NOW());
+        VALUES (gen_random_uuid(), '$LOCATION', NOW());
     "
 
     echo "✅ Product created"

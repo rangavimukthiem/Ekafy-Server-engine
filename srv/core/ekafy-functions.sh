@@ -8,6 +8,7 @@ source "$BASE/modules/registry.sh"
 source "$BASE/modules/deploy.sh"
 source "$BASE/web-functions.sh"
 source "$BASE/modules/git.sh"
-source "$BASE/update.sh"
-# source "$BASE/ekafy-remove.sh"
+source "$BASE/modules/update.sh"
+source "$BASE/modules/status.sh"
+
 

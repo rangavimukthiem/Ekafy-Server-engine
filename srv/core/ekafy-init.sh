@@ -379,13 +379,21 @@ app.listen(PORT, () => {
  
 });
 EOF
-echo ""
+echo "Api Gateway Scripted ....."
 
 # running api gateway-server
-pm2 stop all
-echo ""
+SERVER_FILE="$CORE_API_DIR/server.js"
+
+# Safety check
+if [[ ! -f "$SERVER_FILE" ]]; then
+    echo "❌ Gateway server not found: $SERVER_FILE"
+    
+fi
+
+# pm2 stop all
+# echo "Stopped all PM2 "
 pm2 start "$CORE_API_DIR/server.js" --name ekafy-gateway
-echo ""
+echo "Started Ekafy-gateway in $CORE_API_DIR/server.js"
 pm2 save
 echo "PM2 service registered for Gateway Server.....  "
 
