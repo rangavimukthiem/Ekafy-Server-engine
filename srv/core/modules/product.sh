@@ -21,7 +21,11 @@ function product_create() {
 }
 
 function product_list() {
-    ls /srv/ekafy-server-engine/apps
+    ls /srv/core/apps
+    # sudo -u postgres psql -d ekafy_registry -c "
+    #     SELECT * FROM apps;
+    # "
+    exit 0
 }
 
 function product_delete() {
